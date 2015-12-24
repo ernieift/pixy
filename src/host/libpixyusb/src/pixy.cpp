@@ -4,6 +4,65 @@
 
 PixyInterpreter interpreter;
 
+/** 
+
+  \mainpage libpixyusb-0.4 API Reference
+
+  \section introduction Introduction
+
+  libpixyusb is an open source library that allows you to communicate with
+  Pixy over the USB protocol.
+
+  This documentation is aimed at application developers wishing to send
+  commands to Pixy or read sensor data from Pixy.
+
+  \section library_features Library features
+
+  - Read blocks with or without color codes
+  - RGB LED control (color/intensity)
+  - Auto white balance control
+  - Auto exposure compensation control
+  - Brightness control
+  - Servo position control/query
+  - Custom commands
+
+  \section dependencies Dependencies
+
+  Required to build:
+
+  - <a href=http://www.cmake.org>cmake</a>
+ 
+  Required for runtime:
+
+  - <a href=http://www.libusb.org>libusb</a>
+  - <a href=http://www.boost.org>libboost</a>
+
+  \section getting_started Getting Started
+ 
+  The libpixyusb API reference documentation can be found here:
+
+  libpixyusb API Reference
+
+  Some tutorials that use libpixyusb can be found here:
+
+  <a href=http://cmucam.org/projects/cmucam5/wiki/Hooking_up_Pixy_to_a_Raspberry_Pi>Hooking up Pixy to a Raspberry Pi</a>
+
+  <a href=http://cmucam.org/projects/cmucam5/wiki/Hooking_up_Pixy_to_a_Beaglebone_Black>Hooking up Pixy to a BeagleBone Black</a>
+
+  \section getting_help Getting Help
+
+  Tutorials, walkthroughs, and more are available on the Pixy wiki page:
+
+  <a href=http://www.cmucam.org/projects/cmucam5/wiki>Pixy Developer Wiki Page</a>
+
+  Our friendly developers and users might be able to answer your question on the forums:
+
+  <a href=http://www.cmucam.org/projects/cmucam5/boards/9>Pixy Software Discussion Forum</a>
+  
+  <a href=http://www.cmucam.org/projects/cmucam5/boards/8>Pixy Hardware Discussion Forum</a>
+
+*/
+
 // Pixy C API //
 
 extern "C" 
@@ -42,6 +101,11 @@ extern "C"
   int pixy_get_blocks(uint16_t max_blocks, struct Block * blocks)
   {
     return interpreter.get_blocks(max_blocks, blocks);
+  }
+
+  int pixy_blocks_are_new()
+  {
+    return interpreter.blocks_are_new();
   }
 
   int pixy_command(const char *name, ...)
@@ -95,9 +159,15 @@ extern "C"
     // Pack the RGB value //
     RGB = blue + (green << 8) + (red << 16);
 
-    return_value = pixy_command("led_set", CRP_INT32, RGB, END_OUT_ARGS, &chirp_response, END_IN_ARGS);
+    return_value = pixy_command("led_set", INT32(RGB), END_OUT_ARGS, &chirp_response, END_IN_ARGS);
 
-    return return_value;
+   if (return_value < 0) {
+      // Error //
+      return return_value;
+    } else {
+      // Success //
+      return chirp_response;
+    }
   }
 
   int pixy_led_set_max_current(uint32_t current)
@@ -105,9 +175,15 @@ extern "C"
     int chirp_response;
     int return_value;
 
-    return_value = pixy_command("led_setMaxCurrent", CRP_INT32, current, END_OUT_ARGS, &chirp_response, END_IN_ARGS);
+    return_value = pixy_command("led_setMaxCurrent", INT32(current), END_OUT_ARGS, &chirp_response, END_IN_ARGS);
 
-    return return_value;
+   if (return_value < 0) {
+      // Error //
+      return return_value;
+    } else {
+      // Success //
+      return chirp_response;
+    }
   }
 
   int pixy_led_get_max_current()
@@ -131,9 +207,15 @@ extern "C"
     int      return_value;
     uint32_t chirp_response;
 
-    return_value = pixy_command("cam_setAWB", CRP_UINT8, enable, END_OUT_ARGS, &chirp_response, END_IN_ARGS);
+    return_value = pixy_command("cam_setAWB", UINT8(enable), END_OUT_ARGS, &chirp_response, END_IN_ARGS);
 
-    return return_value;
+   if (return_value < 0) {
+      // Error //
+      return return_value;
+    } else {
+      // Success //
+      return chirp_response;
+    }
   }
 
   int pixy_cam_get_auto_white_balance()
@@ -159,7 +241,13 @@ extern "C"
 
     return_value = pixy_command("cam_getWBV", END_OUT_ARGS, &chirp_response, END_IN_ARGS);
 
-    return chirp_response;
+   if (return_value < 0) {
+      // Error //
+      return return_value;
+    } else {
+      // Success //
+      return chirp_response;
+    }
   }
 
   int pixy_cam_set_white_balance_value(uint8_t red, uint8_t green, uint8_t blue)
@@ -170,9 +258,15 @@ extern "C"
 
     white_balance = green + (red << 8) + (blue << 16);
 
-    return_value = pixy_command("cam_setAWB", CRP_UINT32, white_balance, END_OUT_ARGS, &chirp_response, END_IN_ARGS);
+    return_value = pixy_command("cam_setAWB", UINT32(white_balance), END_OUT_ARGS, &chirp_response, END_IN_ARGS);
 
-    return return_value;
+   if (return_value < 0) {
+      // Error //
+      return return_value;
+    } else {
+      // Success //
+      return chirp_response;
+    }
   }
 
   int pixy_cam_set_auto_exposure_compensation(uint8_t enable)
@@ -180,9 +274,15 @@ extern "C"
     int      return_value;
     uint32_t chirp_response;
 
-    return_value = pixy_command("cam_setAEC", CRP_UINT8, enable, END_OUT_ARGS, &chirp_response, END_IN_ARGS);
+    return_value = pixy_command("cam_setAEC", UINT8(enable), END_OUT_ARGS, &chirp_response, END_IN_ARGS);
 
-    return return_value;
+   if (return_value < 0) {
+      // Error //
+      return return_value;
+    } else {
+      // Success //
+      return chirp_response;
+    }
 }
   
   int pixy_cam_get_auto_exposure_compensation()
@@ -209,9 +309,15 @@ extern "C"
 
     exposure = gain + (compensation << 8);
 
-    return_value = pixy_command("cam_setECV", CRP_UINT32, exposure, END_OUT_ARGS, &chirp_response, END_IN_ARGS);
+    return_value = pixy_command("cam_setECV", UINT32(exposure), END_OUT_ARGS, &chirp_response, END_IN_ARGS);
 
-    return return_value;
+   if (return_value < 0) {
+      // Error //
+      return return_value;
+    } else {
+      // Success //
+      return chirp_response;
+    }
   }
 
   int pixy_cam_get_exposure_compensation(uint8_t * gain, uint16_t * compensation)
@@ -244,9 +350,15 @@ extern "C"
     int chirp_response;
     int return_value;
 
-    return_value = pixy_command("cam_setBrightness", CRP_INT8, brightness, END_OUT_ARGS, &chirp_response, END_IN_ARGS);
+    return_value = pixy_command("cam_setBrightness", UINT8(brightness), END_OUT_ARGS, &chirp_response, END_IN_ARGS);
 
-    return return_value;
+   if (return_value < 0) {
+      // Error //
+      return return_value;
+    } else {
+      // Success //
+      return chirp_response;
+    }
   }
 
   int pixy_cam_get_brightness()
@@ -270,7 +382,7 @@ extern "C"
     int chirp_response;
     int return_value;
 
-    return_value = pixy_command("rcs_getPos", CRP_INT8, channel, END_OUT_ARGS, &chirp_response, END_IN_ARGS);
+    return_value = pixy_command("rcs_getPos", UINT8(channel), END_OUT_ARGS, &chirp_response, END_IN_ARGS);
 
     if (return_value < 0) {
       // Error //
@@ -286,13 +398,15 @@ extern "C"
     int chirp_response;
     int return_value;
 
-    if(channel > 1 || position > 999) {
-      return PIXY_ERROR_INVALID_PARAMETER;
-    }   
+    return_value = pixy_command("rcs_setPos", UINT8(channel), INT16(position), END_OUT_ARGS, &chirp_response, END_IN_ARGS);
 
-    return_value = pixy_command("rcs_setPos", CRP_INT8, channel, CRP_INT16, position, END_OUT_ARGS, &chirp_response, END_IN_ARGS);
-
-    return return_value;
+   if (return_value < 0) {
+      // Error //
+      return return_value;
+    } else {
+      // Success //
+      return chirp_response;
+    }
   }
 
   int pixy_rcs_set_frequency(uint16_t frequency)
@@ -300,13 +414,15 @@ extern "C"
     int chirp_response;
     int return_value;
 
-    if(frequency < 20 || frequency > 300) {
-      return PIXY_ERROR_INVALID_PARAMETER;
+    return_value = pixy_command("rcs_setFreq", UINT16(frequency), END_OUT_ARGS, &chirp_response, END_IN_ARGS);
+
+   if (return_value < 0) {
+      // Error //
+      return return_value;
+    } else {
+      // Success //
+      return chirp_response;
     }
-
-    return_value = pixy_command("rcs_setFreq", CRP_INT16, frequency, END_OUT_ARGS, &chirp_response, END_IN_ARGS);
-
-    return return_value;
   }
 
   int pixy_get_firmware_version(uint16_t * major, uint16_t * minor, uint16_t * build)

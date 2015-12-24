@@ -7,7 +7,7 @@ set (Boost_USE_STATIC_LIBS OFF)
 set (Boost_USE_MULTITHREADED ON)
 
 find_package ( libusb-1.0 REQUIRED )
-find_package ( Boost 1.49 COMPONENTS thread system chrono REQUIRED)
+find_package ( Boost 1.49 COMPONENTS thread system REQUIRED)
 
 # Define Operating System #
 
@@ -29,17 +29,17 @@ add_library (pixyusb STATIC src/chirpreceiver.cpp
                             src/pixy.cpp
                             src/usblink.cpp
                             src/utils/timer.cpp
-                            ../../common/chirp.cpp)
+                            ../../common/src/chirp.cpp)
 
 set (THIS_LIB libpixyusb)
 
 include_directories (src
                      src/util
                      include
-                     ../../common
+                     ../../common/inc
                      ${Boost_INCLUDE_DIR}
                      ${LIBUSB_1_INCLUDE_DIRS})
 
 install (TARGETS pixyusb DESTINATION lib)
 install (FILES include/pixy.h DESTINATION include)
-install (FILES ../../common/pixydefs.h DESTINATION include)
+install (FILES ../../common/inc/pixydefs.h DESTINATION include)

@@ -32,6 +32,7 @@ class PixyInterpreter : public Interpreter
   public:
 
     PixyInterpreter();
+    ~PixyInterpreter();
 
     /**
       @brief  Spawns an 'interpreter' thread which attempts to 
@@ -44,6 +45,7 @@ class PixyInterpreter : public Interpreter
        @return  -1    Error: Unable to open pixy USB device
 
     */
+  
     int init();
     
     /**
@@ -51,6 +53,14 @@ class PixyInterpreter : public Interpreter
               the 'iterpreter' thread.
     */
     void close();
+
+   /**
+     @brief      Get status of the block data received from Pixy. 
+ 
+     @return  0  Stale Data: Block data has previously been retrieved using 'pixy_get_blocks()'.
+     @return  1  New Data: Pixy sent new data that has not been retrieve yet.
+   */
+    int blocks_are_new();
 
     /**
       @brief      Copies up to 'max_blocks' number of Blocks to the address pointed
@@ -94,6 +104,7 @@ class PixyInterpreter : public Interpreter
     std::vector<Block> blocks_;
     boost::mutex       blocks_access_mutex_;
     boost::mutex       chirp_access_mutex_;
+    bool               blocks_are_new_;
 
     /**
       @brief  Interpreter thread entry point.
@@ -111,21 +122,21 @@ class PixyInterpreter : public Interpreter
 
       @param[in] data  Incoming Chirp protocol data from Pixy.
     */
-    void interpret_data(void * chrip_data[]);
+    void interpret_data(const void * chrip_data[]);
 
     /**
       @brief Interprets CCB1 messages sent from Pixy.
 
       @param[in] data  Incoming Chirp protocol data from Pixy.
     */
-    void interpret_CCB1(void * data[]);
+    void interpret_CCB1(const void * data[]);
 
     /**
       @brief Interprets CCB2 messages sent from Pixy.
 
       @param[in] data  Incoming Chirp protocol data from Pixy.
     */
-    void interpret_CCB2(void * data[]);
+    void interpret_CCB2(const void * data[]);
 
     /**
       @brief Adds blocks with normal signatures to the PixyInterpreter
@@ -134,7 +145,7 @@ class PixyInterpreter : public Interpreter
       @param[in] blocks  An array of normal signature blocks to add to buffer.
       @param[in] count   Size of the 'blocks' array.
     */
-    void add_normal_blocks(BlobA * blocks, uint32_t count);
+    void add_normal_blocks(const BlobA * blocks, uint32_t count);
 
     /**
       @brief Adds blocks with color code signatures to the PixyInterpreter
@@ -143,7 +154,7 @@ class PixyInterpreter : public Interpreter
       @param[in] blocks  An array of color code signature blocks to add to buffer.
       @param[in] count   Size of the 'blocks' array.
     */
-    void add_color_code_blocks(BlobB * blocks, uint32_t count);
+    void add_color_code_blocks(const BlobB * blocks, uint32_t count);
 };
 
 #endif

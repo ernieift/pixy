@@ -269,7 +269,6 @@ static int usb_get_any_descriptor(struct libusb_device_handle *dev_handle,
 
 Dfu::Dfu()
 {
-    int num_devs;
     usb_dfu_func_descriptor func_dfu = {0};
     struct libusb_device_descriptor desc;
     int ret;
@@ -291,7 +290,7 @@ Dfu::Dfu()
     if (ret || !m_dif.dev_handle)
         throw std::runtime_error("Cannot open Pixy DFU device.");
 #else
-    m_dif.dev_handle = libusb_open_device_with_vid_pid(m_context, PIXY_DFU_VID, PIXY_DFU_DID);
+    m_dif.dev_handle = libusb_open_device_with_vid_pid(m_context, PIXY_DFU_VID, PIXY_DFU_PID);
     if (m_dif.dev_handle==NULL)
         throw std::runtime_error("Cannot open Pixy DFU device.");
     m_dif.dev = libusb_get_device(m_dif.dev_handle);

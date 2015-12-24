@@ -21,7 +21,12 @@ PixyInterpreter::PixyInterpreter()
 {
   thread_die_  = false;
   thread_dead_ = true;
-  receiver_    = 0;
+  receiver_    = NULL;
+}
+
+PixyInterpreter::~PixyInterpreter()
+{
+  close();
 }
 
 int PixyInterpreter::init()
@@ -59,8 +64,12 @@ void PixyInterpreter::close()
     thread_die_ = true;
     thread_.join();
   }
-    
-  delete receiver_;
+  
+  if (receiver_)  
+  {
+    delete receiver_;
+    receiver_ = NULL;
+  }
 }
 
 int PixyInterpreter::get_blocks(int max_blocks, Block * blocks)
@@ -83,10 +92,10 @@ int PixyInterpreter::get_blocks(int max_blocks, Block * blocks)
   // Copy blocks //
   
   for (index = 0; index != number_of_blocks_to_copy; ++index) {
-    memcpy(&blocks[index], &blocks_[0], sizeof(Block));
-    blocks_.erase(blocks_.begin());
+    memcpy(&blocks[index], &blocks_[index], sizeof(Block));
   }
 
+  blocks_are_new_ = false;
   blocks_access_mutex_.unlock();
 
   return number_of_blocks_to_copy;
@@ -119,9 +128,13 @@ int PixyInterpreter::send_command(const char * name, va_list args)
   procedure_id = receiver_->getProc(name);
 
   // Was there an error requesting procedure id? //
-  if (procedure_id == -1) {
+  if (procedure_id < 0) {
     // Request error //
     va_end(arguments);
+
+    // Mutual exclusion for receiver_ object (Unlock) //
+    chirp_access_mutex_.unlock();
+
     return PIXY_ERROR_INVALID_COMMAND;
   }
 
@@ -138,7 +151,6 @@ int PixyInterpreter::send_command(const char * name, va_list args)
 void PixyInterpreter::interpreter_thread()
 {
   thread_dead_ = false;
-
   // Read from Pixy USB connection using the Chirp //
   // protocol until we're told to stop.            //
   while(!thread_die_) {
@@ -149,20 +161,17 @@ void PixyInterpreter::interpreter_thread()
 
     // Mutual exclusion for receiver_ object (Unlock) //
     chirp_access_mutex_.unlock();
-
-    // Take a break, don't starve other send_command calls. //
-    usleep(50000);
+    usleep(15000); // wait for 15ms, ie give time for 
   }
 
   thread_dead_ = true;
 }
 
 
-void PixyInterpreter::interpret_data(void * chirp_data[])
+void PixyInterpreter::interpret_data(const void * chirp_data[])
 {
   uint8_t  chirp_message;
   uint32_t chirp_type;
-
   if (chirp_data[0]) {
 
     chirp_message = Chirp::getType(chirp_data[0]);
@@ -171,8 +180,8 @@ void PixyInterpreter::interpret_data(void * chirp_data[])
       
       case CRP_TYPE_HINT:
         
-        chirp_type = * static_cast<uint32_t *>(chirp_data[0]);
-  
+        chirp_type = * static_cast<const uint32_t *>(chirp_data[0]);
+
         switch(chirp_type) {
 
           case FOURCC('B', 'A', '8', '1'):
@@ -206,50 +215,63 @@ void PixyInterpreter::interpret_data(void * chirp_data[])
   } 
 }
 
-void PixyInterpreter::interpret_CCB1(void * CCB1_data[])
+void PixyInterpreter::interpret_CCB1(const void * CCB1_data[])
 {
-  uint32_t   number_of_blobs;
-  BlobA    * blobs;
-  uint32_t   index;
+  uint32_t       number_of_blobs;
+  const BlobA *  blobs;
+  uint32_t       index;
   
   // Add blocks with normal signatures //
   
-  number_of_blobs = * static_cast<uint32_t *>(CCB1_data[3]);
-  blobs           = static_cast<BlobA *>(CCB1_data[4]);
+  number_of_blobs = * static_cast<const uint32_t *>(CCB1_data[3]);
+  blobs           = static_cast<const BlobA *>(CCB1_data[4]);
   
   number_of_blobs /= sizeof(BlobA) / sizeof(uint16_t);
   
+  // Wait for permission to use blocks_ vector //
+  blocks_access_mutex_.lock();
+
   add_normal_blocks(blobs, number_of_blobs);
+  blocks_are_new_ = true;
+  blocks_access_mutex_.unlock();
 }
 
 
-void PixyInterpreter::interpret_CCB2(void * CCB2_data[])
+void PixyInterpreter::interpret_CCB2(const void * CCB2_data[])
 {
-  uint32_t   number_of_blobs;
-  BlobA    * A_blobs;
-  BlobB    * B_blobs;
-  uint32_t   index;
+  uint32_t       number_of_blobs;
+  const BlobA *  A_blobs;
+  const BlobB *  B_blobs;
+  uint32_t       index;
+
+  // Wait for permission to use blocks_ vector //
+  blocks_access_mutex_.lock();
+
+  // The blocks container will only contain the newest //
+  // blocks                                            //
+  blocks_.clear();
 
   // Add blocks with color code signatures //
 
-  number_of_blobs = * static_cast<uint32_t *>(CCB2_data[5]);
-  B_blobs         = static_cast<BlobB *>(CCB2_data[6]);
+  number_of_blobs = * static_cast<const uint32_t *>(CCB2_data[5]);
+  B_blobs         = static_cast<const BlobB *>(CCB2_data[6]);
   
   number_of_blobs /= sizeof(BlobB) / sizeof(uint16_t);
-
   add_color_code_blocks(B_blobs, number_of_blobs);
 
   // Add blocks with normal signatures //
 
-  number_of_blobs = * static_cast<uint32_t *>(CCB2_data[3]);
-  A_blobs         = static_cast<BlobA *>(CCB2_data[4]);
+  number_of_blobs = * static_cast<const uint32_t *>(CCB2_data[3]);
+  A_blobs         = static_cast<const BlobA *>(CCB2_data[4]);
   
   number_of_blobs /= sizeof(BlobA) / sizeof(uint16_t);
   
   add_normal_blocks(A_blobs, number_of_blobs);
+  blocks_are_new_ = true;
+  blocks_access_mutex_.unlock();
 }
 
-void PixyInterpreter::add_normal_blocks(BlobA * blocks, uint32_t count)
+void PixyInterpreter::add_normal_blocks(const BlobA * blocks, uint32_t count)
 {
   uint32_t index;
   Block    block;
@@ -258,22 +280,19 @@ void PixyInterpreter::add_normal_blocks(BlobA * blocks, uint32_t count)
 
     // Decode CCB1 'Normal' Signature Type //
 
-    block.type      = TYPE_NORMAL;
+    block.type      = PIXY_BLOCKTYPE_NORMAL;
     block.signature = blocks[index].m_model;
     block.width     = blocks[index].m_right - blocks[index].m_left;
     block.height    = blocks[index].m_bottom - blocks[index].m_top;
     block.x         = blocks[index].m_left + block.width / 2;
     block.y         = blocks[index].m_top + block.height / 2;
-    
+
     // Angle is not a valid parameter for 'Normal'  //
     // signature types. Setting to zero by default. //
     block.angle     = 0;
       
     // Store new block in block buffer //
 
-    // Wait for permission to use blocks_ vector //
-    blocks_access_mutex_.lock();
-
     if (blocks_.size() == PIXY_BLOCK_CAPACITY) {
       // Blocks buffer is full - replace oldest received block with newest block //
       blocks_.erase(blocks_.begin());
@@ -282,32 +301,27 @@ void PixyInterpreter::add_normal_blocks(BlobA * blocks, uint32_t count)
       // Add new block to blocks buffer //
       blocks_.push_back(block);
     }
-    
-    blocks_access_mutex_.unlock();
   }
 }
 
-void PixyInterpreter::add_color_code_blocks(BlobB * blocks, uint32_t count)
+void PixyInterpreter::add_color_code_blocks(const BlobB * blocks, uint32_t count)
 {
   uint32_t index;
   Block    block;
-
-  for (index = 0; index != count; ++index) {
     
+  for (index = 0; index != count; ++index) {
+
     // Decode 'Color Code' Signature Type //
 
-    block.type      = TYPE_COLOR_CODE;
+    block.type      = PIXY_BLOCKTYPE_COLOR_CODE;
     block.signature = blocks[index].m_model;
     block.width     = blocks[index].m_right - blocks[index].m_left;
     block.height    = blocks[index].m_bottom - blocks[index].m_top;
     block.x         = blocks[index].m_left + block.width / 2;
     block.y         = blocks[index].m_top + block.height / 2;
     block.angle     = blocks[index].m_angle;
-      
-    // Store new block in block buffer //
 
-    // Wait for permission to use blocks_ vector //
-    blocks_access_mutex_.lock();
+    // Store new block in block buffer //
 
     if (blocks_.size() == PIXY_BLOCK_CAPACITY) {
       // Blocks buffer is full - replace oldest received block with newest block //
@@ -317,7 +331,17 @@ void PixyInterpreter::add_color_code_blocks(BlobB * blocks, uint32_t count)
       // Add new block to blocks buffer //
       blocks_.push_back(block);
     }
-    
-    blocks_access_mutex_.unlock();
+  }
+}
+
+int PixyInterpreter::blocks_are_new()
+{
+  usleep(100); // sleep a bit so client doesn't need to
+  if (blocks_are_new_) {
+    // Fresh blocks!! :D //
+    return 1;
+  } else {
+    // Stale blocks... :\ //
+    return 0;
   }
 }

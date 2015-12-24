@@ -11,28 +11,35 @@ TEMPLATE = app
 RC_FILE = resources.rc
 
 SOURCES += main.cpp\
-        mainwindow.cpp \
+    mainwindow.cpp \
     videowidget.cpp \
     usblink.cpp \
     console.cpp \
     interpreter.cpp \
     renderer.cpp \
     chirpmon.cpp \
-    calc.cpp \
     dfu.cpp \
     connectevent.cpp \
     flash.cpp \
     reader.cpp \
-    ../../common/chirp.cpp \
-    ../../common/colorlut.cpp \
-    ../../common/blob.cpp \
-    ../../common/blobs.cpp \
-    processblobs.cpp \
-    ../../common/qqueue.cpp \
+    ../../common/src/chirp.cpp \
+    ../../common/src/colorlut.cpp \
+    ../../common/src/blob.cpp \
+    ../../common/src/blobs.cpp \
+    ../../common/src/qqueue.cpp \
+    ../../common/src/calc.cpp \
     configdialog.cpp \
     aboutdialog.cpp \
     parameters.cpp \
-    paramfile.cpp
+    paramfile.cpp \
+    dataexport.cpp \
+    monmodule.cpp \
+    cblobmodule.cpp \
+    colorblob.cpp \
+    monparameterdb.cpp \
+    cccmodule.cpp \
+    debug.cpp \
+    blobs2.cpp
 
 HEADERS  += mainwindow.h \
     videowidget.h \
@@ -41,35 +48,42 @@ HEADERS  += mainwindow.h \
     interpreter.h \
     renderer.h \
     chirpmon.h \
-    calc.h \
     dfu.h \
     usb_dfu.h \
     dfu_info.h \
     connectevent.h \
     flash.h \
     reader.h \
-    ../../common/pixytypes.h \
-    ../../common/pixydefs.h \
-    ../../common/chirp.hpp \
-    ../../common/colorlut.h \
-    ../../common/blobs.h \
-    ../../common/blob.h \
-    ../../common/blobs.h \
-    processblobs.h \
-    ../../common/qqueue.h \
+    ../../common/inc/pixytypes.h \
+    ../../common/inc/pixydefs.h \
+    ../../common/inc/chirp.hpp \
+    ../../common/inc/colorlut.h \
+    ../../common/inc/blobs.h \
+    ../../common/inc/blob.h \
+    ../../common/inc/blobs.h \
+    ../../common/inc/qqueue.h \
+    ../../common/inc/link.h \
+    ../../common/inc/calc.h \
+    ../../common/inc/simplevector.h \
     pixymon.h \
     configdialog.h \
-    ../../common/link.h \
     sleeper.h \
     aboutdialog.h \
     parameters.h \
-    paramfile.h
+    paramfile.h \
+    dataexport.h \
+    monmodule.h \
+    cblobmodule.h \
+    colorblob.h \
+    monparameterdb.h \
+    cccmodule.h \
+    debug.h \
+    blobs2.h
 
-INCLUDEPATH += ../../common
+INCLUDEPATH += ../../common/inc
 
 QMAKE_CXXFLAGS_DEBUG += -O0
 QMAKE_CXXFLAGS += -Wno-unused-parameter
-QMAKE_CXXFLAGS += -mno-ms-bitfields
 FORMS    += mainwindow.ui \
     configdialog.ui \
     about.ui
@@ -78,10 +92,11 @@ FORMS    += mainwindow.ui \
 
 win32 {
     DEFINES += __WINDOWS__
+    QMAKE_CXXFLAGS += -mno-ms-bitfields
     LIBS += ../windows/libusb-1.0.dll.a
     HEADERS += ../windows/libusb.h
     INCLUDEPATH += ../windows
-
+    QMAKE_CXXFLAGS += -mno-ms-bitfields
 }
 
 macx {

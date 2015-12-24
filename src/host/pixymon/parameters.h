@@ -28,16 +28,16 @@
 #include <QString>
 #include <QVariant>
 #include <QList>
+#include <QMutex>
 
 #define PP_CATEGORY     "category"
 #define PP_WIDGET       "widget"
+#define PP_WIDGET2      "widget2"
 #define PP_FLAGS        "flags"
+#define PP_MIN          "min"
+#define PP_MAX          "max"
 
-#define PRM_FLAG_INTERNAL            0x01
-#define PRM_FLAG_ADVANCED            0x02
-#define PRM_FLAG_HEX_FORMAT          0x10
-#define PRM_FLAG_SIGNED              0x80
-
+#define PRM_FLAG_PATH                0x00000400
 
 struct RadioValue
 {
@@ -51,30 +51,19 @@ struct RadioValue
     QVariant m_value;
 };
 
-#define  PT_RADIO_MASK  0x8000
+#define  PT_DATATYPE_MASK  0xff
 
 enum PType
 {
     PT_UNKNOWN = 0x00,
 
-    // type values copied from Chirp and are Chirp-compatible
+    // core data type values copied from Chirp and are Chirp-compatible
     PT_INT8 = 0x01,
     PT_INT16 = 0x02,
     PT_INT32 = 0x04,
     PT_FLT32 = 0x14,
     PT_INTS8 = 0x81,
     PT_STRING = 0xa1,
-
-    // radio types
-    PT_INT8_RADIO = PT_INT8 | PT_RADIO_MASK,
-    PT_INT16_RADIO = PT_INT16 | PT_RADIO_MASK,
-    PT_INT32_RADIO = PT_INT32 | PT_RADIO_MASK,
-    PT_FLT32_RADIO = PT_FLT32 | PT_RADIO_MASK,
-    PT_INTS8_RADIO = PT_INTS8 | PT_RADIO_MASK,
-    PT_STRING_RADIO = PT_STRING | PT_RADIO_MASK,
-
-    // other types
-    PT_PATH = 0x100
 };
 
 typedef QList<RadioValue> RadioValues;
@@ -83,7 +72,7 @@ class Parameter
 {
 public:
     Parameter(const QString &id, PType type, const QString &help="");
-    Parameter(const QString &id, const QVariant &value, PType type, const QString &help="");
+    Parameter(const QString &id, PType type, const QVariant &value, const QString &help="");
     ~Parameter();
 
     QString typeName();
@@ -95,12 +84,17 @@ public:
     int valueInt();
     const QString *description();
 
-    int set(const QVariant &value);
+    int set(const QVariant &value, bool shadow=false);
     int setRadio(const QString &description);
     void setDirty(bool dirty);
+    void setHelp(const QString &help);
+    bool radio();
     bool dirty();
+    void clearShadow();
+    bool shadow();
 
     void addRadioValue(const RadioValue &value);
+    RadioValues &getRadioValues();
     void onOff();
     void trueFalse();
 
@@ -111,9 +105,9 @@ public:
 
 private:
     RadioValues m_radioValues; // m_radioValues.size()>0 we're a radio parameter
-    int m_radioValue;
 
-    QVariant m_value; // else we're just a regular parameter with value in m_value.
+    QVariant m_value;
+    QVariant m_saved;
     PType m_type; // only applies to m_value
 
     QString m_id;
@@ -131,17 +125,26 @@ public:
     ParameterDB();
     ~ParameterDB();
 
-    const QVariant *value(const QString &id);
+    QVariant value(const QString &id);
     Parameter *parameter(const QString &id);
-    const QString *description(const QString &id);
 
     Parameters &parameters();
     int set(const QString &id, const QVariant &value);
     int set(const QString &id, const QString &description);
 
     void add(Parameter param);
+    void add(const QString &id, PType type, const QVariant &value, const QString &help="", const QString &category="", uint flags=0);
 
-private:
+    void clearShadow();
+    void clean();
+
+    QMutex *mutex()
+    {
+        return &m_mutex;
+    }
+
+protected:
+    QMutex m_mutex;
     Parameters m_parameters;
 };
 

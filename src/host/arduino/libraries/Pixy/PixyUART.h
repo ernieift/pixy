@@ -12,6 +12,8 @@
 //
 // end license header
 //
+// This file is for defining the link class for UART communications.  
+//
 
 #ifndef _PIXYUART_H
 #define _PIXYUART_H
@@ -26,7 +28,7 @@ public:
   {
     Serial1.begin(19200);
   }
-  void setAddress(uint8_t addr)
+  void setArg(uint16_t arg)
   {
   }
   uint16_t getWord()
@@ -61,6 +63,10 @@ public:
     }
 	return (uint8_t)u;
   }
+  int8_t send(uint8_t *data, uint8_t len)
+  {
+    return Serial1.write(data, len);
+  }  
 };
 
 typedef TPixy<LinkUART> PixyUART;
